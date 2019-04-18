@@ -1,0 +1,109 @@
+---
+title: "PROSPECT_data_analysis_final"
+author: "Negin"
+date: "26 February 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# <!-- ``` -->
+# 
+# <!-- <!-- ## R Markdown --> -->
+# 
+# <!-- <!-- This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>. --> -->
+# 
+# <!-- <!-- When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this: --> -->
+# 
+# <!-- <!-- ```{r cars} --> -->
+# <!-- <!-- summary(cars) --> -->
+# <!-- <!-- ``` --> -->
+# 
+# <!-- <!-- ## Including Plots --> -->
+# 
+# <!-- <!-- You can also embed plots, for example: --> -->
+# 
+# <!-- <!-- ```{r pressure, echo=FALSE} --> -->
+# <!-- <!-- plot(pressure) --> -->
+# <!-- <!-- ``` --> -->
+# 
+# <!-- <!-- Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. --> -->
+# 
+# 
+
+library(MASS)
+library(ppcor)
+library(ggplot2)
+# library(qpcR)
+# library(reshape2)
+library(sjplot)
+library(xtable)
+
+
+```
+
+```{r blockone}
+PROSPECT <- read.csv("~/Research/PhD/PROSPECT_data_analysis/PROSPECT.csv")
+PROSPECT_PSP_CBS_ATP=subset(PROSPECT, diagnosis_2_no !=0 & diagnosis_2_no !=4)
+
+```
+
+
+```{r blocktwo}
+#first plotting TIV against brainstem regions for all subgroups
+#change diagnosis to factorial so each group can be visualied separately 
+#plotting a scatter plot
+PROSPECT$diagnosis_2_no <- as.factor(PROSPECT$diagnosis_2_no)
+TIV_brainstem_mb <- ggplot(PROSPECT, aes(x=cat12_TIV, y=Midbrain, color=diagnosis_2_no)) +
+  geom_point()+
+  geom_smooth(method=lm)
+TIV_brainstem_mb=TIV_brainstem_mb+facet_wrap(~diagnosis_2_no)
+TIV_brainstem_mb
+```
+
+
+
+```{r glm}
+#running a glm on PSPRS vs different brain regions with age and and TIV as covriates
+
+# PROSPECT$`Temporal Lobe`= as.numeric(PROSPECT$`Temporal Lobe`)
+
+#for (i in c(1,2,3,5,6))
+#{
+#  
+#  
+#  PROSPECT_subgr=subset(PROSPECT_PSP_CBS_ATP,diagnosis_2_no==i)
+#  print(paste("GROUP IS ",i, " and N=",nrow(PROSPECT_subgr)))
+#  
+#  for(j in 31:44){
+#  
+#  print(paste("GROUP IS ",i, " REGION IS ",colnames(PROSPECT_subgr)[j]))
+#  brainreg=PROSPECT_subgr[,j]
+#  lm_psprs_reg= lm(PROSPECT_subgr$psprs_total ~ brainreg + PROSPECT_subgr$age_at_scan + PROSPECT_subgr$cat12_TIV)
+#  print(lm_psprs_reg)
+#  print(summary(lm_psprs_reg))
+
+#  } 
+#  
+#  }
+
+
+# model function
+model.function <- function(group, data.prospect, brainreg){
+  names(data.prospect)[which(names(data.prospect)==brainreg)] = "brainreg"
+  lm_psprs_reg= lm(data=data.prospect, psprs_total ~ brainreg + age_at_scan + cat12_TIV)
+  lm_psprs_reg.summary = summary(lm_psprs_reg)
+  p.vals = lm_psprs_reg.summary[["coefficients"]][,4]
+}
+
+# apply to all groups
+model.results <- lapply(levels(PROSPECT$diagnosis_2_no),
+                        model.function,
+                        data.prospect = PROSPECT,
+                        brainreg = "Temporal.Lobe")
+
+names(model.results) <- sapply(levels(PROSPECT$diagnosis_2_no), function(x) paste(x, "Temporal.Lobe", sep="_"))
+xtable(as.data.frame(model.results), type="html")
+
+```
